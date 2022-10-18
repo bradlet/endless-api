@@ -16,28 +16,19 @@ import kotlinx.coroutines.runBlocking
 
 class ApplicationTest: StringSpec({
 
-    // Small helper to wrap testApplication interaction
-    fun testGet(path: String, assertions: HttpResponse.() -> Unit) {
-        testApplication {
-            application { module() }
-
-            client.get(path).apply(assertions)
-        }
-    }
-
     "root responds with text" {
-        testGet("/") {
-            status shouldBe HttpStatusCode.OK
-            runBlocking {
+        testApplication {
+            client.get("/").apply {
+                status shouldBe HttpStatusCode.OK
                 bodyAsText().isBlank() shouldBe false
             }
         }
     }
 
     "endless api responds as expected" {
-        testGet("/api/test") {
-            status shouldBe HttpStatusCode.OK
-            runBlocking {
+        testApplication {
+            client.get("/api/test").apply {
+                status shouldBe HttpStatusCode.OK
                 jacksonObjectMapper()
                     .readValue(bodyAsText(), EndlessApiResponse::class.java)
                     .apply {
@@ -47,4 +38,5 @@ class ApplicationTest: StringSpec({
             }
         }
     }
+
 })
