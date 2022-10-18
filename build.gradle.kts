@@ -66,10 +66,6 @@ tasks {
 }
 
 jib {
-    from {
-        image = "public.ecr.aws/micahhausler/alpine:3.16.0"
-        setCredHelper("ecr-login")
-    }
     to {
         image = "964799319978.dkr.ecr.us-west-2.amazonaws.com/bradlet"
         setCredHelper("ecr-login")
