@@ -7,6 +7,7 @@ plugins {
     application
     kotlin("jvm")
     id("io.ktor.plugin")
+    id("com.google.cloud.tools.jib")
 }
 
 group = "com.endless"
@@ -43,5 +44,20 @@ dependencies {
 tasks {
     withType<Test> {
         useJUnitPlatform()
+    }
+
+    task("printServiceName") {
+        print(rootProject.name)
+    }
+}
+
+jib {
+    from {
+        image = "public.ecr.aws/micahhausler/alpine:3.16.0"
+        setCredHelper("ecr-login")
+    }
+    to {
+        image = "964799319978.dkr.ecr.us-west-2.amazonaws.com/bradlet"
+        setCredHelper("ecr-login")
     }
 }
