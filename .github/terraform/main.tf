@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     aws = {
-      source = "hashicorp/aws"
+      source  = "hashicorp/aws"
       version = "~> 4.0"
     }
   }
@@ -30,53 +30,106 @@ module "ecs" {
   }
 }
 
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+
+  name = var.vpc_name
+
+  cidr = var.vpc_cidr
+  azs             = ["${var.region}a", "${var.region}b", "${var.region}c"]
+  private_subnets = ["20.0.1.0/24"]
+  public_subnets  = ["20.0.2.0/24", "20.0.3.0/24"]
+
+  enable_nat_gateway = false
+  single_nat_gateway = true
+}
+
+module "sg" {
+  source = "terraform-aws-modules/security-group/aws//modules/http-80"
+
+  name = "endless-server-sg"
+  description = "Security group opening HTTP ingress and egress"
+  vpc_id = module.vpc.vpc_id
+
+  ingress_cidr_blocks = module.vpc.public_subnets_cidr_blocks
+}
+
+module "alb" {
+  source  = "terraform-aws-modules/alb/aws"
+  version = "~> 6.0"
+
+  name = var.alb_name
+
+  load_balancer_type = "application"
+
+  vpc_id             = module.vpc.vpc_id
+  subnets            = module.vpc.public_subnets
+  security_groups    = [module.sg.security_group_id]
+
+  target_groups = [
+    {
+      backend_protocol = "HTTP"
+      backend_port     = var.svc_port
+      target_type      = "ip"
+    }
+  ]
+
+  http_tcp_listeners = [
+    {
+      port        = 80
+      protocol    = "HTTP"
+      target_group_index = 0
+    }
+  ]
+}
+
+
+
 data "aws_ecr_image" "endless-api" {
   repository_name = var.ecr_repo
-  image_tag = "latest"
+  image_tag       = "latest"
 }
 
 resource "aws_ecs_task_definition" "api" {
-  family = "service"
+  family                   = "service"
   requires_compatibilities = ["FARGATE"]
-  network_mode = "awsvpc"
-  cpu = 256
-  memory = 512
+  network_mode             = "awsvpc"
+  cpu                      = 256
+  memory                   = 512
   container_definitions = jsonencode([
     {
-      name = var.svc_display_name
-      image = data.aws_ecr_image.endless-api.id
-      cpu = 256
-      memory = 512
+      name      = var.svc_display_name
+      image     = data.aws_ecr_image.endless-api.id
+      cpu       = 256
+      memory    = 512
       essential = true
       portMappings = [
         {
-          containerPort = 8080
-          hostPort = 8080
+          containerPort = var.svc_port
         }
       ]
     }
   ])
 }
 
-resource "aws_vpc" "default" {
-  cidr_block = var.vpc_cidr
-  instance_tenancy = "default"
-}
-
-resource "aws_subnet" "default_subnet" {
-  vpc_id = aws_vpc.default.id
-  cidr_block = var.vpc_cidr
-}
-
 resource "aws_ecs_service" "service" {
-  name = var.svc_display_name
-  cluster = module.ecs.cluster_arn
+  depends_on = [module.alb.http_tcp_listener_ids]
+  name            = var.svc_display_name
+  cluster         = module.ecs.cluster_arn
   task_definition = aws_ecs_task_definition.api.arn
 
   force_new_deployment = true
-  launch_type = "FARGATE"
+  launch_type          = "FARGATE"
 
   network_configuration {
-    subnets = [aws_subnet.default_subnet.id]
+    subnets            = module.vpc.public_subnets
+    security_groups = [module.sg.security_group_id]
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = module.alb.target_group_arns[0]
+    container_name = var.svc_display_name
+    container_port = var.svc_port
   }
 }
