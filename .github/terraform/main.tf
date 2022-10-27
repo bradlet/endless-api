@@ -28,6 +28,10 @@ module "ecs" {
       }
     }
   }
+
+  tags = {
+    "group" : var.group_name
+  }
 }
 
 module "vpc" {
@@ -42,6 +46,10 @@ module "vpc" {
 
   enable_nat_gateway = false
   single_nat_gateway = true
+
+  tags = {
+    "group" : var.group_name
+  }
 }
 
 module "sg" {
@@ -52,6 +60,10 @@ module "sg" {
   vpc_id      = module.vpc.vpc_id
 
   ingress_cidr_blocks = module.vpc.public_subnets_cidr_blocks
+
+  tags = {
+    "group" : var.group_name
+  }
 }
 
 module "alb" {
@@ -81,6 +93,10 @@ module "alb" {
       target_group_index = 0
     }
   ]
+
+  tags = {
+    "group" : var.group_name
+  }
 }
 
 
@@ -110,6 +126,10 @@ resource "aws_ecs_task_definition" "api" {
       ]
     }
   ])
+
+  tags = {
+    "group" : var.group_name
+  }
 }
 
 resource "aws_ecs_service" "service" {
@@ -117,6 +137,7 @@ resource "aws_ecs_service" "service" {
   name            = var.svc_display_name
   cluster         = module.ecs.cluster_arn
   task_definition = aws_ecs_task_definition.api.arn
+  desired_count   = 1
 
   force_new_deployment = true
   launch_type          = "FARGATE"
@@ -131,5 +152,24 @@ resource "aws_ecs_service" "service" {
     target_group_arn = module.alb.target_group_arns[0]
     container_name   = var.svc_display_name
     container_port   = var.svc_port
+  }
+
+  tags = {
+    "group" : var.group_name
+  }
+}
+
+resource "aws_resourcegroups_group" "endless_group" {
+  name = "Endless-API-Infrastructure"
+  resource_query {
+    query = jsonencode({
+      ResourceTypeFilters : ["AWS::AllSupported"],
+      TagFilters : [
+        {
+          Key : "group",
+          Values : [var.group_name]
+        }
+      ]
+    })
   }
 }

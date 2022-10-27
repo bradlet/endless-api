@@ -33,3 +33,8 @@ variable "alb_name" {
   type    = string
   default = "endless-lb"
 }
+
+variable "group_name" {
+  type    = string
+  default = "endless"
+}
