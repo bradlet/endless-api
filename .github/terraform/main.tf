@@ -35,7 +35,7 @@ module "vpc" {
 
   name = var.vpc_name
 
-  cidr = var.vpc_cidr
+  cidr            = var.vpc_cidr
   azs             = ["${var.region}a", "${var.region}b", "${var.region}c"]
   private_subnets = ["20.0.1.0/24"]
   public_subnets  = ["20.0.2.0/24", "20.0.3.0/24"]
@@ -47,9 +47,9 @@ module "vpc" {
 module "sg" {
   source = "terraform-aws-modules/security-group/aws//modules/http-80"
 
-  name = "endless-server-sg"
+  name        = "endless-server-sg"
   description = "Security group opening HTTP ingress and egress"
-  vpc_id = module.vpc.vpc_id
+  vpc_id      = module.vpc.vpc_id
 
   ingress_cidr_blocks = module.vpc.public_subnets_cidr_blocks
 }
@@ -62,9 +62,9 @@ module "alb" {
 
   load_balancer_type = "application"
 
-  vpc_id             = module.vpc.vpc_id
-  subnets            = module.vpc.public_subnets
-  security_groups    = [module.sg.security_group_id]
+  vpc_id          = module.vpc.vpc_id
+  subnets         = module.vpc.public_subnets
+  security_groups = [module.sg.security_group_id]
 
   target_groups = [
     {
@@ -76,8 +76,8 @@ module "alb" {
 
   http_tcp_listeners = [
     {
-      port        = 80
-      protocol    = "HTTP"
+      port               = 80
+      protocol           = "HTTP"
       target_group_index = 0
     }
   ]
@@ -113,7 +113,7 @@ resource "aws_ecs_task_definition" "api" {
 }
 
 resource "aws_ecs_service" "service" {
-  depends_on = [module.alb.http_tcp_listener_ids]
+  depends_on      = [module.alb.http_tcp_listener_ids]
   name            = var.svc_display_name
   cluster         = module.ecs.cluster_arn
   task_definition = aws_ecs_task_definition.api.arn
@@ -122,14 +122,14 @@ resource "aws_ecs_service" "service" {
   launch_type          = "FARGATE"
 
   network_configuration {
-    subnets            = module.vpc.public_subnets
-    security_groups = [module.sg.security_group_id]
+    subnets          = module.vpc.public_subnets
+    security_groups  = [module.sg.security_group_id]
     assign_public_ip = true
   }
 
   load_balancer {
     target_group_arn = module.alb.target_group_arns[0]
-    container_name = var.svc_display_name
-    container_port = var.svc_port
+    container_name   = var.svc_display_name
+    container_port   = var.svc_port
   }
 }

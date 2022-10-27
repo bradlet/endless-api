@@ -1,35 +1,35 @@
 
 variable "svc_display_name" {
-  type = string
+  type    = string
   default = "endless-api"
 }
 
 variable "svc_port" {
-  type = number
+  type    = number
   default = 8080
 }
 
 variable "region" {
-  type = string
+  type    = string
   default = "us-west-2"
 }
 
 variable "ecr_repo" {
-  type = string
+  type    = string
   default = "bradlet"
 }
 
 variable "vpc_cidr" {
-  type = string
+  type    = string
   default = "20.0.0.0/16"
 }
 
 variable "vpc_name" {
-  type = string
+  type    = string
   default = "default"
 }
 
 variable "alb_name" {
-  type = string
+  type    = string
   default = "endless-lb"
 }
